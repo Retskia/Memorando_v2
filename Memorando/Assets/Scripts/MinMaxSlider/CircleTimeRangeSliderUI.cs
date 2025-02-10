@@ -34,6 +34,7 @@ public class CircularTimeRangeSliderUI : MonoBehaviour
         _maxAngle = StartingMaxAngle;
 
         UpdateHandlesAndFill();
+        LoadTimeRange();
     }
 
     private void UpdateDebugText(List<string> messages)
@@ -71,11 +72,13 @@ public class CircularTimeRangeSliderUI : MonoBehaviour
     public void OnMinHandleReleased()
     {
         ClampMinHandle();
+        SaveTimeRange();
     }
 
     public void OnMaxHandleReleased()
     {
         ClampMaxHandle();
+        SaveTimeRange();
     }
 
     private void ClampMinHandle()
@@ -192,5 +195,36 @@ public class CircularTimeRangeSliderUI : MonoBehaviour
     private int AngleToTimeMinutes(float angle)
     {
         return Mathf.RoundToInt((angle + 360f) % 360f / 360f * TotalMinutesInDay);
+    }
+
+    private void SaveTimeRange()
+    {
+        Debug.Log($"Saving MinAngle: {_minAngle}, MaxAngle: {_maxAngle}");
+        PlayerPrefs.SetFloat("MinAngle", _minAngle);
+        PlayerPrefs.SetFloat("MaxAngle", _maxAngle);
+        PlayerPrefs.Save();
+    }
+
+    private void LoadTimeRange()
+    {
+        _minAngle = PlayerPrefs.GetFloat("MinAngle", _minAngle);
+        _maxAngle = PlayerPrefs.GetFloat("MaxAngle", _maxAngle);
+        Debug.Log($"Loaded MinAngle: {_minAngle}, MaxAngle: {_maxAngle}");
+        UpdateHandlesAndFill();
+
+        _minAngle = PlayerPrefs.GetFloat("MinAngle", StartingMinAngle);
+        _maxAngle = PlayerPrefs.GetFloat("MaxAngle", StartingMaxAngle);
+        Debug.Log($"Loaded MinAngle: {_minAngle}, MaxAngle: {_maxAngle}");
+        UpdateHandlesAndFill();
+    }
+
+    private void OnApplicationQuit()
+    {
+        SaveTimeRange();
+    }
+
+    private void OnDisable()
+    {
+        SaveTimeRange();
     }
 }

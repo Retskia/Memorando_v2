@@ -15,6 +15,7 @@ public class CircularTimeRangeSliderUI : MonoBehaviour
     public TextMeshProUGUI MaxTimeText;   // Text for maximum time
     public TextMeshProUGUI DebugLabelA;   // DELETE MEEEE
 
+
     [Header("Settings")]
     public float Radius = 100f;           // Radius of the circle
     public float StartingMinAngle = 300f;
@@ -26,6 +27,15 @@ public class CircularTimeRangeSliderUI : MonoBehaviour
     private float _minAngle;
     private float _maxAngle;
 
+    public float GetMinAngle()
+    {
+        return _minAngle;
+    }
+
+    public float GetMaxAngle()
+    {
+        return _maxAngle;
+    }
 
     private void Start()
     {

@@ -237,4 +237,12 @@ public class CircularTimeRangeSliderUI : MonoBehaviour
     {
         SaveTimeRange();
     }
+
+    public void ResetToDefault()
+    {
+        _minAngle = StartingMinAngle;
+        _maxAngle = StartingMaxAngle;
+        UpdateHandlesAndFill(); // Update UI
+        SaveTimeRange(); // Save reset values
+    }
 }

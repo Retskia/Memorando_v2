@@ -8,6 +8,17 @@ public class Notifications : MonoBehaviour
 {
     void Start()
     {
+        // Check if the app was opened from a notification
+        var notificationIntentData = AndroidNotificationCenter.GetLastNotificationIntent();
+
+        if (notificationIntentData != null)
+        {
+            if (notificationIntentData.Notification.IntentData == "open_camera")
+            {
+                OpenCamera();
+            }
+        }
+
         ScheduleNotification();
     }
 
@@ -51,12 +62,15 @@ public class Notifications : MonoBehaviour
         AndroidNotificationCenter.RegisterNotificationChannel(channel);
 
         // Create the notification
-        var notification = new AndroidNotification();
-        notification.Title = "Memorando";
-        notification.Text = "Time to take a picture";
-        notification.SmallIcon = "icon";
-        notification.LargeIcon = "logo";
-        notification.FireTime = notificationTime;
+        var notification = new AndroidNotification
+        {
+            Title = "Memorando",
+            Text = "Time to take a picture",
+            SmallIcon = "icon",
+            LargeIcon = "logo",
+            FireTime = notificationTime,
+            IntentData = "open_camera" // This allows us to detect when it's clicked
+        };
 
         // Cancel any previously scheduled notifications
         AndroidNotificationCenter.CancelAllScheduledNotifications();
@@ -71,5 +85,26 @@ public class Notifications : MonoBehaviour
     {
         const int TotalMinutesInDay = 1440;
         return Mathf.RoundToInt((angle + 360f) % 360f / 360f * TotalMinutesInDay);
+    }
+
+    private void OpenCamera()
+    {
+        try
+        {
+            // Open camera using Android intent
+            AndroidJavaClass unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
+            AndroidJavaObject currentActivity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity");
+            AndroidJavaObject intent = new AndroidJavaObject("android.content.Intent");
+            AndroidJavaClass intentClass = new AndroidJavaClass("android.provider.MediaStore");
+
+            intent.Call<AndroidJavaObject>("setAction", intentClass.GetStatic<string>("ACTION_IMAGE_CAPTURE"));
+            currentActivity.Call("startActivity", intent);
+
+            Debug.Log("Camera opened from notification");
+        }
+        catch (Exception e)
+        {
+            Debug.LogError("Error opening camera: " + e.Message);
+        }
     }
 }

@@ -13,7 +13,7 @@ public class CircularTimeRangeSliderUI : MonoBehaviour
     public RectTransform FillArea;        // The fill area (circular arc fill)
     public TextMeshProUGUI MinTimeText;   // Text for minimum time
     public TextMeshProUGUI MaxTimeText;   // Text for maximum time
-    public TextMeshProUGUI DebugLabelA;   // DELETE MEEEE
+    //public TextMeshProUGUI DebugLabelA;   // DELETE MEEEE
 
 
     [Header("Settings")]
@@ -58,7 +58,7 @@ public class CircularTimeRangeSliderUI : MonoBehaviour
             msg += string.Join("\n", messages);
         }
 
-        DebugLabelA.SetText(msg);
+        //DebugLabelA.SetText(msg);
     }
 
     public void OnMinHandleDragged()
@@ -81,13 +81,13 @@ public class CircularTimeRangeSliderUI : MonoBehaviour
 
     public void OnMinHandleReleased()
     {
-        ClampMinHandle();
+        //ClampMinHandle();
         SaveTimeRange();
     }
 
     public void OnMaxHandleReleased()
     {
-        ClampMaxHandle();
+        //ClampMaxHandle();
         SaveTimeRange();
     }
 
@@ -101,7 +101,7 @@ public class CircularTimeRangeSliderUI : MonoBehaviour
         else
             biasMaxAngle = _maxAngle;
 
-        DebugLabelA.SetText(Mathf.DeltaAngle(_minAngle, biasMaxAngle).ToString());
+        //DebugLabelA.SetText(Mathf.DeltaAngle(_minAngle, biasMaxAngle).ToString());
         if (Mathf.DeltaAngle(_minAngle, biasMaxAngle) < minDistanceAngle)
         {
             _minAngle = (biasMaxAngle - minDistanceAngle) % 360f;
@@ -111,7 +111,7 @@ public class CircularTimeRangeSliderUI : MonoBehaviour
     private void ClampMaxHandle()
     {
         float minDistanceAngle = MinDistanceInMinutes * 360f / TotalMinutesInDay;
-        DebugLabelA.SetText(Mathf.DeltaAngle(_minAngle, _maxAngle).ToString());
+        //DebugLabelA.SetText(Mathf.DeltaAngle(_minAngle, _maxAngle).ToString());
         if (Mathf.DeltaAngle(_maxAngle, _minAngle) > -minDistanceAngle)
         {
             _maxAngle = (_minAngle + minDistanceAngle) % 360f;

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
@@ -5,11 +6,16 @@ using UnityEngine.UI;
 public class NfpCameraExample : MonoBehaviour
 {
     public Image img;
-    private string savedPhotoPath;
+    public Button nextButton;
+    public Button prevButton;
+
+    private List<string> imagePaths = new List<string>();
+    private int currentIndex = 0;
 
     void Start()
     {
-        LoadSavedImage();
+        LoadImagePaths();
+        DisplayImage();
     }
 
     public void TakePhotoAndLoad()
@@ -30,33 +36,51 @@ public class NfpCameraExample : MonoBehaviour
 
             Debug.Log("Photo saved at: " + path);
 
-            // Move the image to a persistent storage location
-            string newFilePath = Path.Combine(Application.persistentDataPath, "saved_photo.jpg");
+            // Generate a unique filename for the new image
+            string newFilePath = Path.Combine(Application.persistentDataPath, "photo_" + System.DateTime.Now.Ticks + ".jpg");
             File.Copy(path, newFilePath, true);
 
-            // Save the path for future use
-            PlayerPrefs.SetString("SavedPhotoPath", newFilePath);
+            // Save path to PlayerPrefs
+            int count = PlayerPrefs.GetInt("ImageCount", 0);
+            PlayerPrefs.SetString("ImagePath_" + count, newFilePath);
+            PlayerPrefs.SetInt("ImageCount", count + 1);
             PlayerPrefs.Save();
 
-            // Load and display the image
-            LoadImage(newFilePath);
+            // Update the list and display the new image
+            imagePaths.Add(newFilePath);
+            currentIndex = imagePaths.Count - 1;
+            DisplayImage();
 
         }, maxSize: 1024);
     }
 
-    private void LoadSavedImage()
+    void LoadImagePaths()
     {
-        string path = PlayerPrefs.GetString("SavedPhotoPath", "");
+        imagePaths.Clear();
+        int count = PlayerPrefs.GetInt("ImageCount", 0);
 
-        if (!string.IsNullOrEmpty(path) && File.Exists(path))
+        for (int i = 0; i < count; i++)
         {
-            Debug.Log("Loading saved photo: " + path);
-            LoadImage(path);
+            string path = PlayerPrefs.GetString("ImagePath_" + i, "");
+            if (!string.IsNullOrEmpty(path) && File.Exists(path))
+            {
+                imagePaths.Add(path);
+            }
         }
-        else
+
+        if (imagePaths.Count > 0)
+            currentIndex = 0; // Start with the latest image
+    }
+
+    void DisplayImage()
+    {
+        if (imagePaths.Count > 0 && currentIndex >= 0 && currentIndex < imagePaths.Count)
         {
-            Debug.Log("No saved photo found");
+            LoadImage(imagePaths[currentIndex]);
         }
+
+        prevButton.interactable = currentIndex > 0;
+        nextButton.interactable = currentIndex < imagePaths.Count - 1;
     }
 
     private void LoadImage(string path)
@@ -66,5 +90,23 @@ public class NfpCameraExample : MonoBehaviour
         texture.LoadImage(bytes);
         Sprite sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f), 100f);
         img.sprite = sprite;
+    }
+
+    public void NextImage()
+    {
+        if (currentIndex < imagePaths.Count - 1)
+        {
+            currentIndex++;
+            DisplayImage();
+        }
+    }
+
+    public void PreviousImage()
+    {
+        if (currentIndex > 0)
+        {
+            currentIndex--;
+            DisplayImage();
+        }
     }
 }

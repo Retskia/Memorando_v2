@@ -8,10 +8,19 @@ using UnityEngine;
 
 public class Notifications : MonoBehaviour
 {
-    private string photoPath;
+    private string savedPhotoPath;
 
     void Start()
     {
+        var notificationIntentData = AndroidNotificationCenter.GetLastNotificationIntent();
+
+        if (notificationIntentData != null)
+        {
+            if (notificationIntentData.Notification.IntentData == "open_camera")
+            {
+                TakePhoto();
+            }
+        }
         RegisterNotificationChannel();
         ScheduleNotification();
     }
@@ -46,7 +55,7 @@ public class Notifications : MonoBehaviour
 
         DateTime now = DateTime.Now;
         int futureDaysGenerated = 7;
-        for (int i = 0; i <= futureDaysGenerated; i++)
+        for (int i = 1; i <= futureDaysGenerated; i++)
         {
             DateTime futureDate = now.Date.AddDays(i);
             UnityEngine.Random.InitState(futureDate.Year * 10000 + futureDate.Month * 100 + futureDate.Day);
@@ -76,39 +85,32 @@ public class Notifications : MonoBehaviour
         return Mathf.RoundToInt((angle + 360f) % 360f / 360f * TotalMinutesInDay);
     }
 
-    private void OpenCamera()
+    private void TakePhoto()
     {
-        try
+        if (NativeCamera.IsCameraBusy())
         {
-            AndroidJavaClass unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
-            AndroidJavaObject currentActivity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity");
-            AndroidJavaObject intent = new AndroidJavaObject("android.content.Intent");
-            AndroidJavaClass intentClass = new AndroidJavaClass("android.provider.MediaStore");
-
-            intent.Call<AndroidJavaObject>("setAction", intentClass.GetStatic<string>("ACTION_IMAGE_CAPTURE"));
-
-            // Get file path and use Android FileProvider for compatibility
-            photoPath = Path.Combine(Application.persistentDataPath, "latest_photo.jpg");
-            PlayerPrefs.SetString("LastPhotoPath", photoPath);
-
-            // Create a file object in Java
-            AndroidJavaObject file = new AndroidJavaObject("java.io.File", photoPath);
-            AndroidJavaClass fileProvider = new AndroidJavaClass("androidx.core.content.FileProvider");
-            AndroidJavaObject context = currentActivity.Call<AndroidJavaObject>("getApplicationContext");
-
-            string authority = context.Call<string>("getPackageName") + ".provider";
-            AndroidJavaObject uri = fileProvider.CallStatic<AndroidJavaObject>("getUriForFile", context, authority, file);
-
-            intent.Call<AndroidJavaObject>("putExtra", "output", uri);
-            intent.Call<AndroidJavaObject>("addFlags", 3); // Grant temporary permissions
-
-            currentActivity.Call("startActivity", intent);
-
-            Debug.Log("Camera opened from notification, saving image to: " + photoPath);
+            Debug.Log("Camera is busy");
+            return;
         }
-        catch (Exception e)
+
+        NativeCamera.TakePicture((path) =>
         {
-            Debug.LogError("Error opening camera: " + e.Message);
-        }
+            if (string.IsNullOrEmpty(path))
+            {
+                Debug.Log("Operation cancelled");
+                return;
+            }
+
+            Debug.Log("Photo saved at: " + path);
+
+            // Move the image to persistent storage
+            savedPhotoPath = Path.Combine(Application.persistentDataPath, "saved_photo.jpg");
+            File.Copy(path, savedPhotoPath, true);
+
+            // Save the path for later use
+            PlayerPrefs.SetString("SavedPhotoPath", savedPhotoPath);
+            PlayerPrefs.Save();
+
+        }, maxSize: 1024);
     }
 }

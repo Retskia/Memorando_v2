@@ -66,7 +66,7 @@ public class CircularTimeRangeSliderUI : MonoBehaviour
         Vector2 position = GetPointerPosition();
         Vector2 localPosition = GetLocalPointerPosition(position);
         _minAngle = GetAngleFromPosition(localPosition);
-        //ClampMinHandle();
+        ClampMinHandle();
         UpdateHandlesAndFill();
     }
 
@@ -75,7 +75,7 @@ public class CircularTimeRangeSliderUI : MonoBehaviour
         Vector2 position = GetPointerPosition();
         Vector2 localPosition = GetLocalPointerPosition(position);
         _maxAngle = GetAngleFromPosition(localPosition);
-        //ClampMaxHandle();
+        ClampMaxHandle();
         UpdateHandlesAndFill();
     }
 
@@ -93,6 +93,7 @@ public class CircularTimeRangeSliderUI : MonoBehaviour
 
     private void ClampMinHandle()
     {
+        // Ensure minimum handle is at least the minimum distance from the maximum handle
         float minDistanceAngle = MinDistanceInMinutes * 360f / TotalMinutesInDay;
         float biasMaxAngle;
 
@@ -101,8 +102,11 @@ public class CircularTimeRangeSliderUI : MonoBehaviour
         else
             biasMaxAngle = _maxAngle;
 
-        //DebugLabelA.SetText(Mathf.DeltaAngle(_minAngle, biasMaxAngle).ToString());
-        if (Mathf.DeltaAngle(_minAngle, biasMaxAngle) < minDistanceAngle)
+        // Calculate the angle difference
+        float angleDifference = biasMaxAngle - _minAngle;
+
+        // If the angle difference is smaller than the minimum allowed, adjust
+        if (angleDifference < minDistanceAngle)
         {
             _minAngle = (biasMaxAngle - minDistanceAngle) % 360f;
         }
@@ -110,9 +114,20 @@ public class CircularTimeRangeSliderUI : MonoBehaviour
 
     private void ClampMaxHandle()
     {
+        // Ensure maximum handle is at least the minimum distance from the minimum handle
         float minDistanceAngle = MinDistanceInMinutes * 360f / TotalMinutesInDay;
-        //DebugLabelA.SetText(Mathf.DeltaAngle(_minAngle, _maxAngle).ToString());
-        if (Mathf.DeltaAngle(_maxAngle, _minAngle) > -minDistanceAngle)
+        float biasMaxAngle;
+
+        if (_maxAngle < _minAngle)
+            biasMaxAngle = _maxAngle + 360f;
+        else
+            biasMaxAngle = _maxAngle;
+
+        // Calculate the angle difference
+        float angleDifference = biasMaxAngle - _minAngle;
+
+        // If the angle difference is smaller than the minimum allowed, adjust
+        if (angleDifference < minDistanceAngle)
         {
             _maxAngle = (_minAngle + minDistanceAngle) % 360f;
         }

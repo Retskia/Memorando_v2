@@ -5,7 +5,7 @@ using UnityEngine.UI;
 
 public class NfpCameraExample : MonoBehaviour
 {
-    public Image img;
+    /*public Image img;
     public Button nextButton;
     public Button prevButton;
 
@@ -108,5 +108,5 @@ public class NfpCameraExample : MonoBehaviour
             currentIndex--;
             DisplayImage();
         }
-    }
+    }*/
 }

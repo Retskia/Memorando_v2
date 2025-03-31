@@ -8,8 +8,6 @@ using UnityEngine;
 
 public class Notifications : MonoBehaviour
 {
-    private string savedPhotoPath;
-
     void Start()
     {
         var notificationIntentData = AndroidNotificationCenter.GetLastNotificationIntent();
@@ -18,7 +16,15 @@ public class Notifications : MonoBehaviour
         {
             if (notificationIntentData.Notification.IntentData == "open_camera")
             {
-                TakePhoto();
+                // Check if the notification is still valid
+                if (IsNotificationValid())
+                {
+                    TakePhoto();
+                }
+                else
+                {
+                    Debug.Log("Time expired! You can’t take the photo anymore.");
+                }
             }
         }
         RegisterNotificationChannel();
@@ -62,15 +68,18 @@ public class Notifications : MonoBehaviour
             int randomMinutes = UnityEngine.Random.Range(minMinutes, maxMinutes) % 1440;
             DateTime notificationTime = futureDate.AddMinutes(randomMinutes);
 
+            // Save notification time for checking expiration
+            PlayerPrefs.SetString("LastNotificationTime", notificationTime.ToString("yyyy-MM-dd HH:mm:ss"));
+            PlayerPrefs.Save();
+
             var notification = new AndroidNotification
             {
                 Title = "Memorando",
-                //Text = "Time to take a picture!",
-                Text = notificationTime.ToString("yyyy-MM-dd HH:mm:ss"),
+                Text = "You have 5 minutes to take a picture!",
                 SmallIcon = "icon",
                 LargeIcon = "logo",
                 FireTime = notificationTime,
-                IntentData = "open_camera" // This tells the app what to do
+                IntentData = "open_camera"
             };
 
             AndroidNotificationCenter.SendNotification(notification, "channel_id");
@@ -83,6 +92,20 @@ public class Notifications : MonoBehaviour
     {
         const int TotalMinutesInDay = 1440;
         return Mathf.RoundToInt((angle + 360f) % 360f / 360f * TotalMinutesInDay);
+    }
+
+    private bool IsNotificationValid()
+    {
+        string lastNotificationTimeStr = PlayerPrefs.GetString("LastNotificationTime", "");
+        if (string.IsNullOrEmpty(lastNotificationTimeStr))
+        {
+            return false; // No valid notification time
+        }
+
+        DateTime lastNotificationTime = DateTime.ParseExact(lastNotificationTimeStr, "yyyy-MM-dd HH:mm:ss", null);
+        TimeSpan timeElapsed = DateTime.Now - lastNotificationTime;
+
+        return timeElapsed.TotalMinutes <= 5; // Valid only if within 5 minutes
     }
 
     private void TakePhoto()
@@ -103,13 +126,16 @@ public class Notifications : MonoBehaviour
 
             Debug.Log("Photo saved at: " + path);
 
-            // Move the image to persistent storage
-            savedPhotoPath = Path.Combine(Application.persistentDataPath, "saved_photo.jpg");
-            File.Copy(path, savedPhotoPath, true);
+            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            string newFilePath = Path.Combine(Application.persistentDataPath, "photo_" + timestamp + ".jpg");
+            File.Copy(path, newFilePath, true);
 
-            // Save the path for later use
-            PlayerPrefs.SetString("SavedPhotoPath", savedPhotoPath);
+            int imageCount = PlayerPrefs.GetInt("ImageCount", 0);
+            PlayerPrefs.SetString("ImagePath_" + imageCount, newFilePath);
+            PlayerPrefs.SetInt("ImageCount", imageCount + 1);
             PlayerPrefs.Save();
+
+            Debug.Log("Photo saved at: " + newFilePath);
 
         }, maxSize: 1024);
     }

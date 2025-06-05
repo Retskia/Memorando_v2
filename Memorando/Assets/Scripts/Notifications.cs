@@ -14,22 +14,41 @@ public class Notifications : MonoBehaviour
 
         if (notificationIntentData != null)
         {
-            if (notificationIntentData.Notification.IntentData == "open_camera")
+            string intentData = notificationIntentData.Notification.IntentData;
+
+            if (!string.IsNullOrEmpty(intentData) && intentData.StartsWith("open_camera"))
             {
-                // Check if the notification is still valid
-                if (IsNotificationValid())
+                string[] parts = intentData.Split('|');
+                if (parts.Length == 2)
                 {
-                    TakePhoto();
+                    string fireTimeStr = parts[1];
+                    if (DateTime.TryParseExact(fireTimeStr, "yyyy-MM-dd HH:mm:ss", null, System.Globalization.DateTimeStyles.None, out DateTime fireTime))
+                    {
+                        if ((DateTime.Now - fireTime).TotalMinutes <= 5)
+                        {
+                            TakePhoto();
+                        }
+                        else
+                        {
+                            Debug.Log("Time expired! You can’t take the photo anymore.");
+                        }
+                    }
+                    else
+                    {
+                        Debug.Log("Failed to parse fire time from IntentData.");
+                    }
                 }
                 else
                 {
-                    Debug.Log("Time expired! You can’t take the photo anymore.");
+                    Debug.Log("Invalid intent format.");
                 }
             }
         }
+
         RegisterNotificationChannel();
         ScheduleNotification();
     }
+
 
     private void RegisterNotificationChannel()
     {
@@ -79,7 +98,7 @@ public class Notifications : MonoBehaviour
                 SmallIcon = "icon",
                 LargeIcon = "logo",
                 FireTime = notificationTime,
-                IntentData = "open_camera"
+                IntentData = "open_camera|" + notificationTime.ToString("yyyy-MM-dd HH:mm:ss")
             };
 
             AndroidNotificationCenter.SendNotification(notification, "channel_id");

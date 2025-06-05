@@ -32,6 +32,12 @@ public class permissionsAll : MonoBehaviour
             Permission.RequestUserPermission("android.permission.READ_MEDIA_IMAGES");
             yield return new WaitForSeconds(0.5f);
         }
+
+        if (!Permission.HasUserAuthorizedPermission("android.permission.ACCESS_FINE_LOCATION"))
+        {
+            Permission.RequestUserPermission("android.permission.ACCESS_FINE_LOCATION");
+            yield return new WaitForSeconds(0.5f);
+        }
     }
 
 }

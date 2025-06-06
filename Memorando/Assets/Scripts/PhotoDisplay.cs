@@ -56,8 +56,8 @@ public class PhotoDisplay : MonoBehaviour
         img.sprite = sprite;
 
         int index = imagePaths.IndexOf(path);
-        string date = PlayerPrefs.GetString("ImageDate_" + index, "Unknown date");
-        string location = PlayerPrefs.GetString("ImageLocation_" + index, "Unknown location");
+        string date = PlayerPrefs.GetString("ImageDate_" + index, " ");
+        string location = PlayerPrefs.GetString("ImageLocation_" + index, " ");
 
         // If location is in "lat,lon", you could reverse geocode it to a name (optional step)
         info_text.text = date + "\n" + location;

@@ -26,7 +26,7 @@ public class Notifications : MonoBehaviour
                     string fireTimeStr = parts[1];
                     if (DateTime.TryParseExact(fireTimeStr, "yyyy-MM-dd HH:mm:ss", null, System.Globalization.DateTimeStyles.None, out DateTime fireTime))
                     {
-                        if ((DateTime.Now - fireTime).TotalMinutes <= 5)
+                        if (IsNotificationValid(fireTime))
                         {
                             TakePhoto();
                         }
@@ -34,6 +34,7 @@ public class Notifications : MonoBehaviour
                         {
                             Debug.Log("Time expired! You can’t take the photo anymore.");
                         }
+
                     }
                     else
                     {
@@ -115,19 +116,12 @@ public class Notifications : MonoBehaviour
         return Mathf.RoundToInt((angle + 360f) % 360f / 360f * TotalMinutesInDay);
     }
 
-    private bool IsNotificationValid()
+    private bool IsNotificationValid(DateTime fireTime)
     {
-        string lastNotificationTimeStr = PlayerPrefs.GetString("LastNotificationTime", "");
-        if (string.IsNullOrEmpty(lastNotificationTimeStr))
-        {
-            return false; // No valid notification time
-        }
-
-        DateTime lastNotificationTime = DateTime.ParseExact(lastNotificationTimeStr, "yyyy-MM-dd HH:mm:ss", null);
-        TimeSpan timeElapsed = DateTime.Now - lastNotificationTime;
-
-        return timeElapsed.TotalMinutes <= 5; // Valid only if within 5 minutes
+        TimeSpan timeElapsed = DateTime.Now - fireTime;
+        return timeElapsed.TotalMinutes <= 5;
     }
+
 
     private void TakePhoto()
     {

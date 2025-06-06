@@ -1,5 +1,6 @@
 using System.IO;
 using UnityEngine;
+using TMPro;
 using UnityEngine.UI;
 using System.Collections.Generic;
 
@@ -8,6 +9,7 @@ public class PhotoDisplay : MonoBehaviour
     public Image img;
     public Button nextButton;
     public Button prevButton;
+    public TMP_Text info_text;
     private List<string> imagePaths = new List<string>();
     private int currentIndex = 0;
     private Texture2D currentTexture = null;
@@ -52,6 +54,14 @@ public class PhotoDisplay : MonoBehaviour
         currentTexture.LoadImage(bytes);
         Sprite sprite = Sprite.Create(currentTexture, new Rect(0, 0, currentTexture.width, currentTexture.height), new Vector2(0.5f, 0.5f), 100f);
         img.sprite = sprite;
+
+        int index = imagePaths.IndexOf(path);
+        string date = PlayerPrefs.GetString("ImageDate_" + index, "Unknown date");
+        string location = PlayerPrefs.GetString("ImageLocation_" + index, "Unknown location");
+
+        // If location is in "lat,lon", you could reverse geocode it to a name (optional step)
+        info_text.text = date + "\n" + location;
+
     }
 
 

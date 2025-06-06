@@ -5,6 +5,8 @@ using System.IO;
 using Unity.Notifications.Android;
 using UnityEngine.SceneManagement;
 using UnityEngine;
+using System.Threading.Tasks;
+
 
 public class Notifications : MonoBehaviour
 {
@@ -146,16 +148,49 @@ public class Notifications : MonoBehaviour
             Debug.Log("Photo saved at: " + path);
 
             string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            string formattedDate = DateTime.Now.ToString("d.M.yyyy HH:mm"); // "5.6.2025 14:07"
             string newFilePath = Path.Combine(Application.persistentDataPath, "photo_" + timestamp + ".jpg");
             File.Copy(path, newFilePath, true);
 
-            int imageCount = PlayerPrefs.GetInt("ImageCount", 0);
-            PlayerPrefs.SetString("ImagePath_" + imageCount, newFilePath);
-            PlayerPrefs.SetInt("ImageCount", imageCount + 1);
-            PlayerPrefs.Save();
-
-            Debug.Log("Photo saved at: " + newFilePath);
+            // Start location coroutine
+            StartCoroutine(SaveMetadataWithLocation(newFilePath, formattedDate));
 
         }, maxSize: 1024);
     }
+
+    private IEnumerator SaveMetadataWithLocation(string filePath, string formattedDate)
+    {
+        string location = "Unknown";
+
+        if (Input.location.isEnabledByUser)
+        {
+            Input.location.Start();
+
+            int maxWait = 20;
+            while (Input.location.status == LocationServiceStatus.Initializing && maxWait > 0)
+            {
+                yield return new WaitForSeconds(1);
+                maxWait--;
+            }
+
+            if (Input.location.status == LocationServiceStatus.Running)
+            {
+                float lat = Input.location.lastData.latitude;
+                float lon = Input.location.lastData.longitude;
+                location = $"{lat},{lon}";
+            }
+
+            Input.location.Stop();
+        }
+
+        int imageCount = PlayerPrefs.GetInt("ImageCount", 0);
+        PlayerPrefs.SetString("ImagePath_" + imageCount, filePath);
+        PlayerPrefs.SetString("ImageDate_" + imageCount, formattedDate);
+        PlayerPrefs.SetString("ImageLocation_" + imageCount, location);
+        PlayerPrefs.SetInt("ImageCount", imageCount + 1);
+        PlayerPrefs.Save();
+
+        Debug.Log($"Saved: {filePath}, Date: {formattedDate}, Location: {location}");
+    }
+
 }

@@ -2,7 +2,7 @@ using UnityEngine;
 using TMPro;
 using System;
 
-public class counter : MonoBehaviour
+public class Counter : MonoBehaviour
 {
     public TMP_Text countdownTMP;
     public GameObject objectToHide;
@@ -39,22 +39,34 @@ public class counter : MonoBehaviour
         {
             CancelInvoke("UpdateCountdown");
             countdownTMP.text = "0 years\n0 months\n0 days\n0 hours\n0 minutes\n0 seconds";
-
             if (objectToHide != null)
                 objectToHide.SetActive(false);
-
             return;
         }
 
-        countdownTMP.text = FormatTimeSpan(remainingTime);
+        countdownTMP.text = FormatTimeSpan(DateTime.Now, endTime);
     }
 
-    private string FormatTimeSpan(TimeSpan timeSpan)
+    private string FormatTimeSpan(DateTime start, DateTime end)
     {
-        int years = timeSpan.Days / 365;
-        int months = (timeSpan.Days % 365) / 30;
-        int days = (timeSpan.Days % 365) % 30;
+        int years = end.Year - start.Year;
+        int months = end.Month - start.Month;
+        int days = end.Day - start.Day;
 
-        return $"{years} years\n{months} months\n{days} days\n{timeSpan.Hours} hours\n{timeSpan.Minutes} minutes\n{timeSpan.Seconds} seconds";
+        if (days < 0)
+        {
+            months--;
+            DateTime previousMonth = end.AddMonths(-1);
+            days += DateTime.DaysInMonth(previousMonth.Year, previousMonth.Month);
+        }
+        if (months < 0)
+        {
+            years--;
+            months += 12;
+        }
+
+        TimeSpan remainingTime = end - start;
+
+        return $"{years} years\n{months} months\n{days} days\n{remainingTime.Hours} hours\n{remainingTime.Minutes} minutes\n{remainingTime.Seconds} seconds";
     }
 }

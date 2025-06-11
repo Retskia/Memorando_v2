@@ -5,6 +5,8 @@ using System.IO;
 using Unity.Notifications.Android;
 using UnityEngine.SceneManagement;
 using UnityEngine;
+using System.Threading.Tasks;
+
 
 public class Notifications : MonoBehaviour
 {
@@ -14,22 +16,42 @@ public class Notifications : MonoBehaviour
 
         if (notificationIntentData != null)
         {
-            if (notificationIntentData.Notification.IntentData == "open_camera")
+            string intentData = notificationIntentData.Notification.IntentData;
+
+            if (!string.IsNullOrEmpty(intentData) && intentData.StartsWith("open_camera"))
             {
-                // Check if the notification is still valid
-                if (IsNotificationValid())
+                string[] parts = intentData.Split('|');
+                if (parts.Length == 2)
                 {
-                    TakePhoto();
+                    string fireTimeStr = parts[1];
+                    if (DateTime.TryParseExact(fireTimeStr, "yyyy-MM-dd HH:mm:ss", null, System.Globalization.DateTimeStyles.None, out DateTime fireTime))
+                    {
+                        if (IsNotificationValid(fireTime))
+                        {
+                            TakePhoto();
+                        }
+                        else
+                        {
+                            Debug.Log("Time expired! You can’t take the photo anymore.");
+                        }
+
+                    }
+                    else
+                    {
+                        Debug.Log("Failed to parse fire time from IntentData.");
+                    }
                 }
                 else
                 {
-                    Debug.Log("Time expired! You can’t take the photo anymore.");
+                    Debug.Log("Invalid intent format.");
                 }
             }
         }
+
         RegisterNotificationChannel();
         ScheduleNotification();
     }
+
 
     private void RegisterNotificationChannel()
     {
@@ -79,7 +101,7 @@ public class Notifications : MonoBehaviour
                 SmallIcon = "icon",
                 LargeIcon = "logo",
                 FireTime = notificationTime,
-                IntentData = "open_camera"
+                IntentData = "open_camera|" + notificationTime.ToString("yyyy-MM-dd HH:mm:ss")
             };
 
             AndroidNotificationCenter.SendNotification(notification, "channel_id");
@@ -94,19 +116,12 @@ public class Notifications : MonoBehaviour
         return Mathf.RoundToInt((angle + 360f) % 360f / 360f * TotalMinutesInDay);
     }
 
-    private bool IsNotificationValid()
+    private bool IsNotificationValid(DateTime fireTime)
     {
-        string lastNotificationTimeStr = PlayerPrefs.GetString("LastNotificationTime", "");
-        if (string.IsNullOrEmpty(lastNotificationTimeStr))
-        {
-            return false; // No valid notification time
-        }
-
-        DateTime lastNotificationTime = DateTime.ParseExact(lastNotificationTimeStr, "yyyy-MM-dd HH:mm:ss", null);
-        TimeSpan timeElapsed = DateTime.Now - lastNotificationTime;
-
-        return timeElapsed.TotalMinutes <= 5; // Valid only if within 5 minutes
+        TimeSpan timeElapsed = DateTime.Now - fireTime;
+        return timeElapsed.TotalMinutes <= 5;
     }
+
 
     private void TakePhoto()
     {
@@ -127,16 +142,49 @@ public class Notifications : MonoBehaviour
             Debug.Log("Photo saved at: " + path);
 
             string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            string formattedDate = DateTime.Now.ToString("d.M.yyyy HH:mm"); // "5.6.2025 14:07"
             string newFilePath = Path.Combine(Application.persistentDataPath, "photo_" + timestamp + ".jpg");
             File.Copy(path, newFilePath, true);
 
-            int imageCount = PlayerPrefs.GetInt("ImageCount", 0);
-            PlayerPrefs.SetString("ImagePath_" + imageCount, newFilePath);
-            PlayerPrefs.SetInt("ImageCount", imageCount + 1);
-            PlayerPrefs.Save();
-
-            Debug.Log("Photo saved at: " + newFilePath);
+            // Start location coroutine
+            StartCoroutine(SaveMetadataWithLocation(newFilePath, formattedDate));
 
         }, maxSize: 1024);
     }
+
+    private IEnumerator SaveMetadataWithLocation(string filePath, string formattedDate)
+    {
+        string location = "Unknown";
+
+        if (Input.location.isEnabledByUser)
+        {
+            Input.location.Start();
+
+            int maxWait = 20;
+            while (Input.location.status == LocationServiceStatus.Initializing && maxWait > 0)
+            {
+                yield return new WaitForSeconds(1);
+                maxWait--;
+            }
+
+            if (Input.location.status == LocationServiceStatus.Running)
+            {
+                float lat = Input.location.lastData.latitude;
+                float lon = Input.location.lastData.longitude;
+                location = $"{lat},{lon}";
+            }
+
+            Input.location.Stop();
+        }
+
+        int imageCount = PlayerPrefs.GetInt("ImageCount", 0);
+        PlayerPrefs.SetString("ImagePath_" + imageCount, filePath);
+        PlayerPrefs.SetString("ImageDate_" + imageCount, formattedDate);
+        PlayerPrefs.SetString("ImageLocation_" + imageCount, location);
+        PlayerPrefs.SetInt("ImageCount", imageCount + 1);
+        PlayerPrefs.Save();
+
+        Debug.Log($"Saved: {filePath}, Date: {formattedDate}, Location: {location}");
+    }
+
 }

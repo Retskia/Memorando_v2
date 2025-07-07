@@ -3,6 +3,7 @@ using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
 using System.Collections.Generic;
+using System;
 
 public class PhotoDisplay : MonoBehaviour
 {
@@ -31,38 +32,36 @@ public class PhotoDisplay : MonoBehaviour
 
         for (int i = 0; i < count; i++)
         {
-            string path = PlayerPrefs.GetString("ImagePath_" + i, "");
-            if (!string.IsNullOrEmpty(path) && File.Exists(path))
+            string base64 = PlayerPrefs.GetString("ImageBase64_" + i, "");
+            if (!string.IsNullOrEmpty(base64))
             {
-                imagePaths.Add(path);
+                imagePaths.Add(base64);
             }
         }
     }
 
 
-    private void LoadImage(string path)
+
+    private void LoadImage(string base64)
     {
-        // Clean up the previous texture
         if (currentTexture != null)
         {
             Destroy(currentTexture);
             currentTexture = null;
         }
 
-        byte[] bytes = File.ReadAllBytes(path);
+        byte[] bytes = Convert.FromBase64String(base64);
         currentTexture = new Texture2D(2, 2);
         currentTexture.LoadImage(bytes);
         Sprite sprite = Sprite.Create(currentTexture, new Rect(0, 0, currentTexture.width, currentTexture.height), new Vector2(0.5f, 0.5f), 100f);
         img.sprite = sprite;
 
-        int index = imagePaths.IndexOf(path);
+        int index = currentIndex;
         string date = PlayerPrefs.GetString("ImageDate_" + index, " ");
         string location = PlayerPrefs.GetString("ImageLocation_" + index, " ");
-
-        // If location is in "lat,lon", you could reverse geocode it to a name (optional step)
         info_text.text = date + "\n" + location;
-
     }
+
 
 
     public void NextImage()

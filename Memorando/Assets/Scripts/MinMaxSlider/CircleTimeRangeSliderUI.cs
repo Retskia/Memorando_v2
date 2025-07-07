@@ -228,6 +228,8 @@ public class CircularTimeRangeSliderUI : MonoBehaviour
         PlayerPrefs.SetFloat("MinAngle", _minAngle);
         PlayerPrefs.SetFloat("MaxAngle", _maxAngle);
         PlayerPrefs.Save();
+        Notifications.RegisterNotificationChannel();
+        Notifications.ScheduleNotification();
     }
 
     private void LoadTimeRange()

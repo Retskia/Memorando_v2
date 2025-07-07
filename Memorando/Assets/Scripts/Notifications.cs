@@ -48,12 +48,12 @@ public class Notifications : MonoBehaviour
             }
         }
 
-        RegisterNotificationChannel();
-        ScheduleNotification();
+        //RegisterNotificationChannel();
+        //ScheduleNotification();
     }
 
 
-    private void RegisterNotificationChannel()
+    public static void RegisterNotificationChannel()
     {
         var channel = new AndroidNotificationChannel()
         {
@@ -66,7 +66,7 @@ public class Notifications : MonoBehaviour
         AndroidNotificationCenter.RegisterNotificationChannel(channel);
     }
 
-    public void ScheduleNotification()
+    public static void ScheduleNotification()
     {
         float minAngle = PlayerPrefs.GetFloat("MinAngle", 300f);
         float maxAngle = PlayerPrefs.GetFloat("MaxAngle", 120f);
@@ -104,13 +104,15 @@ public class Notifications : MonoBehaviour
                 IntentData = "open_camera|" + notificationTime.ToString("yyyy-MM-dd HH:mm:ss")
             };
 
+            NotificationLog.AddLog(notificationTime);
+
             AndroidNotificationCenter.SendNotification(notification, "channel_id");
         }
 
         Debug.Log("Notifications scheduled.");
     }
 
-    private int AngleToTimeMinutes(float angle)
+    public static int AngleToTimeMinutes(float angle)
     {
         const int TotalMinutesInDay = 1440;
         return Mathf.RoundToInt((angle + 360f) % 360f / 360f * TotalMinutesInDay);
@@ -125,31 +127,7 @@ public class Notifications : MonoBehaviour
 
     private void TakePhoto()
     {
-        if (NativeCamera.IsCameraBusy())
-        {
-            Debug.Log("Camera is busy");
-            return;
-        }
-
-        NativeCamera.TakePicture((path) =>
-        {
-            if (string.IsNullOrEmpty(path))
-            {
-                Debug.Log("Operation cancelled");
-                return;
-            }
-
-            Debug.Log("Photo saved at: " + path);
-
-            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            string formattedDate = DateTime.Now.ToString("d.M.yyyy HH:mm"); // "5.6.2025 14:07"
-            string newFilePath = Path.Combine(Application.persistentDataPath, "photo_" + timestamp + ".jpg");
-            File.Copy(path, newFilePath, true);
-
-            // Start location coroutine
-            StartCoroutine(SaveMetadataWithLocation(newFilePath, formattedDate));
-
-        }, maxSize: 1024);
+        SceneManager.LoadScene("CameraScene");
     }
 
     private IEnumerator SaveMetadataWithLocation(string filePath, string formattedDate)
@@ -171,7 +149,18 @@ public class Notifications : MonoBehaviour
             {
                 float lat = Input.location.lastData.latitude;
                 float lon = Input.location.lastData.longitude;
-                location = $"{lat},{lon}";
+
+                // Wait for reverse geocoding to complete
+                bool isDone = false;
+                StartCoroutine(ReverseGeocode(lat, lon, (result) =>
+                {
+                    location = result;
+                    isDone = true;
+                }));
+
+                // Wait until reverse geocoding is done
+                while (!isDone)
+                    yield return null;
             }
 
             Input.location.Stop();
@@ -186,5 +175,60 @@ public class Notifications : MonoBehaviour
 
         Debug.Log($"Saved: {filePath}, Date: {formattedDate}, Location: {location}");
     }
+
+
+    private IEnumerator ReverseGeocode(float lat, float lon, Action<string> callback)
+    {
+        string url = $"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&format=json";
+
+        using (UnityEngine.Networking.UnityWebRequest www = UnityEngine.Networking.UnityWebRequest.Get(url))
+        {
+            www.SetRequestHeader("User-Agent", "UnityApp"); // Required by Nominatim
+
+            yield return www.SendWebRequest();
+
+            if (www.result != UnityEngine.Networking.UnityWebRequest.Result.Success)
+            {
+                Debug.Log("Reverse geocoding failed: " + www.error);
+                callback("Unknown Location");
+            }
+            else
+            {
+                try
+                {
+                    string json = www.downloadHandler.text;
+                    var data = JsonUtility.FromJson<NominatimResult>(json);
+                    string display = data.address.city ?? data.address.town ?? data.address.village ?? data.address.county ?? "Unknown";
+                    if (!string.IsNullOrEmpty(data.address.country))
+                    {
+                        display += ", " + data.address.country;
+                    }
+                    callback(display);
+                }
+                catch (Exception e)
+                {
+                    Debug.Log("JSON Parse error: " + e.Message);
+                    callback("Unknown Location");
+                }
+            }
+        }
+    }
+
+    [Serializable]
+    private class NominatimResult
+    {
+        public Address address;
+    }
+
+    [Serializable]
+    private class Address
+    {
+        public string city;
+        public string town;
+        public string village;
+        public string county;
+        public string country;
+    }
+
 
 }

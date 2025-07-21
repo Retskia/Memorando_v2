@@ -19,28 +19,32 @@ public class AccessCamera : MonoBehaviour
         captureButton.onClick.AddListener(OnCaptureClick);
     }
 
+    private bool webcamInitialized = false;
+
     void Update()
     {
-        if (webcam != null && webcam.width > 100)
+        if (webcam != null && webcam.width > 100 && !webcamInitialized)
         {
             img.texture = webcam;
             img.material.mainTexture = webcam;
 
-            // Set the aspect ratio on the AspectRatioFitter
+            // Match aspect ratio to webcam
             AspectRatioFitter fitter = img.GetComponent<AspectRatioFitter>();
             if (fitter != null)
             {
                 fitter.aspectRatio = (float)webcam.width / webcam.height;
             }
 
-            // Rotation fix
+            // Fix rotation
             img.rectTransform.localEulerAngles = new Vector3(0, 0, -webcam.videoRotationAngle);
 
-            // Flip horizontally if mirrored
+            // Flip if mirrored
             img.rectTransform.localScale = new Vector3(webcam.videoVerticallyMirrored ? -1 : 1, 1, 1);
-        }
 
+            webcamInitialized = true; // Prevent repeating setup
+        }
     }
+
 
     void OnCaptureClick()
     {

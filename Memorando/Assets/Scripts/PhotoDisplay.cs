@@ -5,44 +5,53 @@ using UnityEngine.UI;
 using System.Collections.Generic;
 using System;
 
+[Serializable]
+public class PhotoMetadata
+{
+    public string filePath;
+    public string date;
+    public string location;
+}
 public class PhotoDisplay : MonoBehaviour
 {
     public RawImage img;
     public Button nextButton;
     public Button prevButton;
     public TMP_Text info_text;
-    private List<string> imagePaths = new List<string>();
+
+    private List<PhotoMetadata> photoList = new List<PhotoMetadata>();
     private int currentIndex = 0;
     private Texture2D currentTexture = null;
+    private string photoDirectory => Path.Combine(Application.persistentDataPath, "Photos");
+    private string metadataFile => Path.Combine(photoDirectory, "metadata.json");
 
     void Start()
     {
-        LoadImagePaths();
-        if (imagePaths.Count > 0)
+        LoadMetadata();
+        if (photoList.Count > 0)
         {
             currentIndex = 0; // Start from the first image
-            LoadImage(imagePaths[currentIndex]);
+            LoadImage(photoList[currentIndex]);
         }
     }
 
-    private void LoadImagePaths()
+    private void LoadMetadata()
     {
-        imagePaths.Clear();
-        int count = PlayerPrefs.GetInt("ImageCount", 0);
-
-        for (int i = 0; i < count; i++)
+        photoList.Clear();
+        if (File.Exists(metadataFile))
         {
-            string base64 = PlayerPrefs.GetString("ImageBase64_" + i, "");
-            if (!string.IsNullOrEmpty(base64))
-            {
-                imagePaths.Add(base64);
-            }
+            string json = File.ReadAllText(metadataFile);
+            photoList = JsonUtility.FromJson<PhotoListWrapper>(json).photos;
         }
     }
 
+    [Serializable]
+    private class PhotoListWrapper
+    {
+        public List<PhotoMetadata> photos = new();
+    }
 
-
-    private void LoadImage(string base64)
+    private void LoadImage(PhotoMetadata metadata)
     {
         if (currentTexture != null)
         {
@@ -50,7 +59,14 @@ public class PhotoDisplay : MonoBehaviour
             currentTexture = null;
         }
 
-        byte[] bytes = Convert.FromBase64String(base64);
+        string path = metadata.filePath;
+        if (!File.Exists(path))
+        {
+            Debug.LogWarning("Image file not found: " + path);
+            return;
+        }
+
+        byte[] bytes = File.ReadAllBytes(path);
         currentTexture = new Texture2D(2, 2);
         currentTexture.LoadImage(bytes);
         img.texture = currentTexture;
@@ -62,51 +78,36 @@ public class PhotoDisplay : MonoBehaviour
             fitter.aspectRatio = (float)currentTexture.width / currentTexture.height;
         }
 
-        // Apply rotation and flip
-        img.rectTransform.localEulerAngles = Vector3.zero; // Reset rotation
-        img.rectTransform.localScale = Vector3.one;        // Reset scale
+        // Reset and then set desired rotation/scale
+        img.rectTransform.localEulerAngles = Vector3.zero;
+        img.rectTransform.localScale = Vector3.one;
 
-        // Apply the same rotation and flip as the camera view
-        img.rectTransform.localEulerAngles = new Vector3(0, 0, -90);
-        img.rectTransform.localScale = new Vector3(1, 1, 1);
-        // Camera was mirrored vertically
+        // If your images need -90° to appear upright:
+        img.rectTransform.localEulerAngles = new Vector3(0, 0, -90f);
 
-        int index = currentIndex;
-        string date = PlayerPrefs.GetString("ImageDate_" + index, " ");
-        string location = PlayerPrefs.GetString("ImageLocation_" + index, " ");
-        info_text.text = date + "\n" + location;
+        info_text.text = $"{metadata.date}\n{metadata.location}";
     }
+
 
 
 
 
     public void NextImage()
     {
-        if (imagePaths.Count > 0 && currentIndex < imagePaths.Count - 1)
+        if (photoList.Count > 0 && currentIndex < photoList.Count - 1)
         {
             currentIndex++;
-            LoadImage(imagePaths[currentIndex]);
+            LoadImage(photoList[currentIndex]);
         }
     }
 
     public void PreviousImage()
     {
-        if (imagePaths.Count > 0 && currentIndex > 0)
+        if (photoList.Count > 0 && currentIndex > 0)
         {
             currentIndex--;
-            LoadImage(imagePaths[currentIndex]);
+            LoadImage(photoList[currentIndex]);
         }
     }
-
-    /*private Texture2D FlipTextureVertically(Texture2D original)
-    {
-        Texture2D flipped = new Texture2D(original.width, original.height);
-        for (int y = 0; y < original.height; y++)
-        {
-            flipped.SetPixels(0, y, original.width, 1, original.GetPixels(0, original.height - 1 - y, original.width, 1));
-        }
-        flipped.Apply();
-        return flipped;
-    }*/
 
 }

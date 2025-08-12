@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 
 public class Notifications : MonoBehaviour
 {
+    private DateTime notificationFireTime;
     void Start()
     {
         var notificationIntentData = AndroidNotificationCenter.GetLastNotificationIntent();
@@ -28,6 +29,7 @@ public class Notifications : MonoBehaviour
                     {
                         if (IsNotificationValid(fireTime))
                         {
+                            notificationFireTime = fireTime;
                             TakePhoto();
                         }
                         else
@@ -127,8 +129,11 @@ public class Notifications : MonoBehaviour
 
     private void TakePhoto()
     {
+        PlayerPrefs.SetString("CameraCountdownFireTime", notificationFireTime.ToString("yyyy-MM-dd HH:mm:ss"));
+        PlayerPrefs.Save();
         SceneManager.LoadScene("CameraScene");
     }
+
 
     private IEnumerator SaveMetadataWithLocation(string filePath, string formattedDate)
     {
@@ -166,12 +171,22 @@ public class Notifications : MonoBehaviour
             Input.location.Stop();
         }
 
-        int imageCount = PlayerPrefs.GetInt("ImageCount", 0);
-        PlayerPrefs.SetString("ImagePath_" + imageCount, filePath);
-        PlayerPrefs.SetString("ImageDate_" + imageCount, formattedDate);
-        PlayerPrefs.SetString("ImageLocation_" + imageCount, location);
-        PlayerPrefs.SetInt("ImageCount", imageCount + 1);
-        PlayerPrefs.Save();
+        string metadataPath = Path.Combine(Application.persistentDataPath, "photo_metadata.json");
+
+        List<PhotoMeta> metaList = new List<PhotoMeta>();
+
+        if (File.Exists(metadataPath))
+        {
+            string json =File.ReadAllText(metadataPath);
+            metaList = JsonUtility.FromJson<PhotoMetaList>(json).list;
+        }
+
+        metaList.Add(new PhotoMeta
+        {
+            filePath = filePath,
+            date = formattedDate,
+            location = location
+        });
 
         Debug.Log($"Saved: {filePath}, Date: {formattedDate}, Location: {location}");
     }
@@ -230,5 +245,18 @@ public class Notifications : MonoBehaviour
         public string country;
     }
 
+    [Serializable]
+    public class PhotoMeta
+    {
+        public string filePath;
+        public string date;
+        public string location;
+    }
+
+    [Serializable]
+    public class PhotoMetaList
+    {
+        public List<PhotoMeta> list = new List<PhotoMeta> ();
+    }
 
 }

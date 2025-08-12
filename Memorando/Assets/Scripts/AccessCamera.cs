@@ -1,25 +1,51 @@
+using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
-using System;
+using UnityEngine.SceneManagement;
+using TMPro; // Required for TMP_Text
+using UnityEngine.Networking;
+using System.Collections.Generic;
+using System.IO;
 
 public class AccessCamera : MonoBehaviour
 {
     WebCamTexture webcam;
     public RawImage img;
     public Button captureButton;
+    public TMP_Text countdown; // Assign this in the Unity Editor
+
+    private float countdownTime = 300f; // 5 minutes in seconds
+    private bool webcamInitialized = false;
 
     void Start()
+    {
+        SetupWebcam();
+
+        // Get fire time from PlayerPrefs to calculate remaining countdown
+        if (PlayerPrefs.HasKey("CameraCountdownFireTime"))
+        {
+            string fireTimeStr = PlayerPrefs.GetString("CameraCountdownFireTime");
+            if (DateTime.TryParseExact(fireTimeStr, "yyyy-MM-dd HH:mm:ss", null, System.Globalization.DateTimeStyles.None, out DateTime fireTime))
+            {
+                TimeSpan elapsed = DateTime.Now - fireTime;
+                float secondsElapsed = (float)elapsed.TotalSeconds;
+                countdownTime = Mathf.Clamp(300f - secondsElapsed, 0f, 300f);
+            }
+        }
+
+        captureButton.onClick.AddListener(OnCaptureClick);
+
+        StartCoroutine(CountdownCoroutine());
+    }
+
+    void SetupWebcam()
     {
         webcam = new WebCamTexture();
         img.texture = webcam;
         img.material.mainTexture = webcam;
         webcam.Play();
-
-        captureButton.onClick.AddListener(OnCaptureClick);
     }
-
-    private bool webcamInitialized = false;
 
     void Update()
     {
@@ -28,12 +54,10 @@ public class AccessCamera : MonoBehaviour
             img.texture = webcam;
             img.material.mainTexture = webcam;
 
-            // Match aspect ratio to webcam
+            // Match aspect ratio
             AspectRatioFitter fitter = img.GetComponent<AspectRatioFitter>();
             if (fitter != null)
-            {
                 fitter.aspectRatio = (float)webcam.width / webcam.height;
-            }
 
             // Fix rotation
             img.rectTransform.localEulerAngles = new Vector3(0, 0, -webcam.videoRotationAngle);
@@ -41,14 +65,32 @@ public class AccessCamera : MonoBehaviour
             // Flip if mirrored
             img.rectTransform.localScale = new Vector3(webcam.videoVerticallyMirrored ? -1 : 1, 1, 1);
 
-            webcamInitialized = true; // Prevent repeating setup
+            webcamInitialized = true;
         }
     }
 
-
-    void OnCaptureClick()
+    private void OnCaptureClick()
     {
         StartCoroutine(CapturePhoto());
+    }
+
+    private IEnumerator CountdownCoroutine()
+    {
+        while (countdownTime > 0)
+        {
+            TimeSpan time = TimeSpan.FromSeconds(countdownTime);
+            countdown.text = time.ToString(@"m\:ss");
+            yield return new WaitForSeconds(1f);
+            countdownTime -= 1f;
+        }
+
+        countdown.text = "Time's up!";
+        yield return new WaitForSeconds(1f);
+
+        // Optional: clear saved fire time
+        PlayerPrefs.DeleteKey("CameraCountdownFireTime");
+
+        SceneManager.LoadScene("HomeScene");
     }
 
     IEnumerator CapturePhoto()
@@ -61,9 +103,6 @@ public class AccessCamera : MonoBehaviour
 
         string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
         string formattedDate = DateTime.Now.ToString("d.M.yyyy HH:mm");
-
-        // Optionally encode to bytes if you ever need to
-        //byte[] bytes = photo.EncodeToPNG();
 
         StartCoroutine(SavePhotoWithMetadata(photo, formattedDate));
     }
@@ -102,32 +141,54 @@ public class AccessCamera : MonoBehaviour
             Input.location.Stop();
         }
 
-        int imageCount = PlayerPrefs.GetInt("ImageCount", 0);
+        string photoDirectory = Path.Combine(Application.persistentDataPath, "Photos");
+        if (!Directory.Exists(photoDirectory))
+            Directory.CreateDirectory(photoDirectory);
 
-        // Save image to memory (as Base64 string)
-        string base64 = Convert.ToBase64String(photo.EncodeToPNG());
-        PlayerPrefs.SetString("ImageBase64_" + imageCount, base64);
+        string filename = DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".png";
+        string filePath = Path.Combine(photoDirectory, filename);
+        File.WriteAllBytes(filePath, photo.EncodeToPNG());
 
-        PlayerPrefs.SetString("ImageDate_" + imageCount, formattedDate);
-        PlayerPrefs.SetString("ImageLocation_" + imageCount, location);
-        PlayerPrefs.SetInt("ImageCount", imageCount + 1);
-        PlayerPrefs.Save();
+        // Save metadata
+        string metadataFile = Path.Combine(photoDirectory, "metadata.json");
+        List<PhotoMetadata> photoList = new List<PhotoMetadata>();
 
-        Debug.Log("Photo metadata saved. Returning to main scene.");
-        UnityEngine.SceneManagement.SceneManager.LoadScene("HomeScene"); 
+        if (File.Exists(metadataFile))
+        {
+            string existingJson = File.ReadAllText(metadataFile);
+            try
+            {
+                photoList = JsonUtility.FromJson<PhotoListWrapper>(existingJson).photos;
+            }
+            catch { }
+        }
+
+        PhotoMetadata newPhoto = new PhotoMetadata
+        {
+            filePath = filePath,
+            date = formattedDate,
+            location = location
+        };
+        photoList.Add(newPhoto);
+
+        string jsonToSave = JsonUtility.ToJson(new PhotoListWrapper { photos = photoList }, true);
+        File.WriteAllText(metadataFile, jsonToSave);
+
+        PlayerPrefs.DeleteKey("CameraCountdownFireTime");
+        SceneManager.LoadScene("HomeScene");
     }
 
     IEnumerator ReverseGeocode(float lat, float lon, Action<string> callback)
     {
         string url = $"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&format=json";
 
-        using (UnityEngine.Networking.UnityWebRequest www = UnityEngine.Networking.UnityWebRequest.Get(url))
+        using (UnityWebRequest www = UnityWebRequest.Get(url))
         {
             www.SetRequestHeader("User-Agent", "UnityApp");
 
             yield return www.SendWebRequest();
 
-            if (www.result != UnityEngine.Networking.UnityWebRequest.Result.Success)
+            if (www.result != UnityWebRequest.Result.Success)
             {
                 callback("Unknown Location");
             }
@@ -164,5 +225,19 @@ public class AccessCamera : MonoBehaviour
         public string village;
         public string county;
         public string country;
+    }
+
+    [Serializable]
+    public class PhotoMetadata
+    {
+        public string filePath;
+        public string date;
+        public string location;
+    }
+
+    [Serializable]
+    private class PhotoListWrapper
+    {
+        public List<PhotoMetadata> photos = new();
     }
 }

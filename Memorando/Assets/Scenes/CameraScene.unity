@@ -316,6 +316,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   img: {fileID: 941923090}
   captureButton: {fileID: 1811181484}
+  countdown: {fileID: 2092857301}
 --- !u!1 &941923088
 GameObject:
   m_ObjectHideFlags: 0

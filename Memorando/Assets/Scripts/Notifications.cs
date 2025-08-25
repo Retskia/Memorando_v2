@@ -50,8 +50,7 @@ public class Notifications : MonoBehaviour
             }
         }
 
-        //RegisterNotificationChannel();
-        //ScheduleNotification();
+
     }
 
 

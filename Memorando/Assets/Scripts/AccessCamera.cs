@@ -14,6 +14,7 @@ public class AccessCamera : MonoBehaviour
     public RawImage img;
     public Button captureButton;
     public TMP_Text countdown; // Assign this in the Unity Editor
+    public GameObject Memopad;
 
     private float countdownTime = 300f; // 5 minutes in seconds
     private bool webcamInitialized = false;
@@ -41,7 +42,7 @@ public class AccessCamera : MonoBehaviour
 
     void SetupWebcam()
     {
-        webcam = new WebCamTexture();
+        webcam = new WebCamTexture(WebCamTexture.devices[0].name, 1080, 2400);
         img.texture = webcam;
         img.material.mainTexture = webcam;
         webcam.Play();
@@ -167,14 +168,18 @@ public class AccessCamera : MonoBehaviour
         {
             filePath = filePath,
             date = formattedDate,
-            location = location
+            location = location,
+            note = ""
         };
         photoList.Add(newPhoto);
 
         string jsonToSave = JsonUtility.ToJson(new PhotoListWrapper { photos = photoList }, true);
         File.WriteAllText(metadataFile, jsonToSave);
 
+        PlayerPrefs.SetString("LastPhotoPath", filePath);
+
         PlayerPrefs.DeleteKey("CameraCountdownFireTime");
+        PlayerPrefs.SetInt("ShowMemopad", 1);
         SceneManager.LoadScene("HomeScene");
     }
 
@@ -233,6 +238,7 @@ public class AccessCamera : MonoBehaviour
         public string filePath;
         public string date;
         public string location;
+        public string note;
     }
 
     [Serializable]
